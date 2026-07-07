@@ -1,0 +1,44 @@
+# Web API 框架，用來建立後端服務與 API 路由。
+fastapi==0.116.1
+
+# ASGI 伺服器，用來啟動 FastAPI 專案。
+uvicorn[standard]==0.35.0
+
+# 支援 multipart/form-data，上傳 Excel 檔案時會用到。
+python-multipart==0.0.20
+
+# 讀取與處理 Excel 表格資料。
+pandas==2.3.1
+
+# Pandas 讀寫 .xlsx Excel 檔案時使用的引擎。
+openpyxl==3.1.5
+
+# HTML 模板引擎，後續用來把姓名、證書名稱、日期套入證書模板。
+jinja2==3.1.6
+
+# 將 HTML/CSS 轉成 PDF。
+# Windows 若缺少 GTK/Pango 可能無法使用；目前實際 PDF 產生改用 ReportLab。
+weasyprint==65.1
+
+# 產生 PDF 證書。
+reportlab==5.0.0
+
+# 測試與檢查 PDF 頁數/內容。
+pypdf==6.14.2
+
+# ORM 工具，用 Python class 對應 SQLite 資料表。
+sqlalchemy==2.0.41
+
+# 管理環境變數與 .env 設定檔。
+pydantic-settings==2.10.1
+
+# 測試框架。
+pytest==8.4.1
+
+# FastAPI TestClient 底層使用的 HTTP client，測試 API 時會用到。
+httpx==0.28.1
+
+# Word .docx 模板套版，支援 {{姓名}} 這類 placeholder。
+docxtpl==0.20.2
+python-docx==1.2.0
+lxml==6.1.1

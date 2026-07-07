@@ -1,0 +1,43 @@
+# Python 快取檔案，不需要進版本控制。
+__pycache__/
+*.py[cod]
+
+# 測試與工具產生的快取資料夾。
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tmp/
+
+# 本機伺服器輸出紀錄。
+*.log
+
+# Python 虛擬環境資料夾。
+.venv/
+venv/
+
+# 本機環境變數檔可能包含機密或個人設定，不提交。
+.env
+
+# Word/Office 開檔時產生的暫存檔。
+~$*
+
+# 使用者上傳的 Excel 檔案不提交，只保留資料夾本身。
+storage/uploads/*
+
+# 系統產生的 PDF、ZIP 不提交，只保留資料夾本身。
+storage/generated/*
+
+# 本機 SQLite 資料庫不提交，只保留資料夾本身。
+storage/database/*.db
+storage/database/*.sqlite
+
+# .gitkeep 用來保留空資料夾，所以要例外提交。
+!storage/uploads/.gitkeep
+!storage/generated/.gitkeep
+!storage/database/.gitkeep
+
+# 產生 docxtpl 時的本機候選樣本，不是系統正式模板。
+storage/templates/cfd_certificate_template_docxtpl_sample.docx
+
+# 舊版模板位置；正式模板放在 storage/templates/。
+storage/certificate_template.pptx

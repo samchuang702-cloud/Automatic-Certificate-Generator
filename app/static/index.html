@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>證書查詢</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Certificate Search</p>
+        <h1>證書查詢</h1>
+      </div>
+      <nav class="nav">
+        <button id="logoutButton" class="secondary-button hidden" type="button">登出</button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section id="loginPanel" class="panel">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Login</p>
+            <h2>登入系統</h2>
+          </div>
+        </div>
+
+        <div class="form-grid login-grid">
+          <label class="field">
+            <span>名字</span>
+            <input id="usernameInput" type="text" />
+          </label>
+          <label class="field">
+            <span>ID</span>
+            <input id="passwordInput" type="text" />
+          </label>
+          <button id="loginButton" type="button">登入</button>
+        </div>
+        <div class="result-bar" id="authStatus">請先登入後再操作系統。</div>
+      </section>
+
+      <section id="admin" class="panel hidden">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2>後台 Excel 管理</h2>
+          </div>
+          <button id="refreshLogsButton" class="secondary-button" type="button">更新紀錄</button>
+        </div>
+
+        <div class="form-grid">
+          <label class="field wide">
+            <span>Excel 檔案</span>
+            <input id="excelFileInput" type="file" accept=".xlsx,.xls" />
+          </label>
+          <button id="previewExcelButton" type="button">預覽</button>
+          <button id="uploadExcelButton" type="button">上傳</button>
+          <button id="importExcelButton" type="button">直接匯入</button>
+        </div>
+
+        <div class="result-bar" id="adminStatus">尚未操作</div>
+
+        <div class="split">
+          <section class="subpanel">
+            <h3>Excel 預覽</h3>
+            <div class="table-wrap">
+              <table id="previewTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="subpanel">
+            <h3>已上傳檔案</h3>
+            <div class="saved-file">
+              <label class="field">
+                <span>保存檔名</span>
+                <input id="savedFilenameInput" type="text" placeholder="上傳成功後會自動填入" />
+              </label>
+              <div class="button-row">
+                <button id="previewSavedButton" class="secondary-button" type="button">預覽已上傳</button>
+                <button id="importSavedButton" class="secondary-button" type="button">匯入已上傳</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="subpanel">
+          <h3>後台操作紀錄</h3>
+          <div id="logsList" class="logs"></div>
+        </section>
+      </section>
+
+      <section id="user" class="panel hidden">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">User</p>
+            <h2>查詢證書</h2>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="loadCertificatesButton" type="button">查詢證書</button>
+        </div>
+
+        <div class="result-bar" id="userStatus">登入後會自動查詢證書。</div>
+
+        <section class="subpanel">
+          <div class="section-title compact">
+            <h3>可產生證書</h3>
+            <button id="generateButton" type="button">產生 PDF</button>
+          </div>
+          <div id="certificateList" class="certificate-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
