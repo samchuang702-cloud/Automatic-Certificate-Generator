@@ -1,4 +1,4 @@
-# Web API 框架，用來建立後端服務與 API 路由。
+# 後端 API 框架，用來建立服務與路由。
 fastapi==0.116.1
 
 # ASGI 伺服器，用來啟動 FastAPI 專案。
@@ -13,7 +13,7 @@ pandas==2.3.1
 # Pandas 讀寫 .xlsx Excel 檔案時使用的引擎。
 openpyxl==3.1.5
 
-# HTML 模板引擎，後續用來把姓名、證書名稱、日期套入證書模板。
+# FastAPI/Starlette 的模板支援。
 jinja2==3.1.6
 
 # 將 HTML/CSS 轉成 PDF。
@@ -35,10 +35,5 @@ pydantic-settings==2.10.1
 # 測試框架。
 pytest==8.4.1
 
-# FastAPI TestClient 底層使用的 HTTP client，測試 API 時會用到。
+# FastAPI TestClient 使用的 HTTP client。
 httpx==0.28.1
-
-# Word .docx 模板套版，支援 {{姓名}} 這類 placeholder。
-docxtpl==0.20.2
-python-docx==1.2.0
-lxml==6.1.1

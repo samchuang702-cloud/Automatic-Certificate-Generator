@@ -10,14 +10,11 @@ from app.services.account_service import authenticate_user, issue_user_identity_
 from app.services.identity_verifier import verify_identity
 
 
-# 使用者端身分驗證 API。
-# prefix 使用 /auth，代表這不是後台管理功能，而是一般使用者查詢證書前的驗證流程。
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginResult)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResult:
-    # 帳號密碼登入，成功後回傳 JWT。
     result = authenticate_user(db, payload.username, payload.password)
     if result is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="帳號或密碼錯誤。")
@@ -26,7 +23,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResult:
 
 @router.post("/login/identity", response_model=LoginResult)
 def login_with_identity(payload: IdentityVerifyRequest, db: Session = Depends(get_db)) -> LoginResult:
-    # 使用者以姓名與 ID 驗證成功後，直接取得一般使用者查詢權限。
+    # 身分登入只授予共用低權限 user 角色。
     identity = verify_identity(
         db,
         name=payload.name,
@@ -46,7 +43,6 @@ def login_with_identity(payload: IdentityVerifyRequest, db: Session = Depends(ge
 
 @router.get("/me", response_model=CurrentUserResult)
 def get_me(current_user: UserAccount = Depends(get_current_user)) -> CurrentUserResult:
-    # 回傳目前 JWT 對應的登入使用者。
     return CurrentUserResult(
         username=current_user.username,
         display_name=current_user.display_name,
@@ -60,8 +56,6 @@ def verify_user_identity(
     current_user: UserAccount = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> IdentityVerifyResult:
-    # 使用者輸入 user_id 與 national_id 後，系統到資料庫比對資料。
-    # 成功後前端才應該進入下一步：查詢可產生證書清單。
     return verify_identity(
         db,
         name=payload.name,

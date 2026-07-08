@@ -9,15 +9,12 @@ from app.schemas.excel import ExcelValidationError, ExcelValidationResult
 from app.services.excel_normalizer import is_valid_issue_date, normalize_excel_dataframe
 
 
-# 台灣身分證字號基本格式檢查。
-# 這裡先檢查格式：1 個英文字母 + 1 或 2 + 8 個數字。
-# 更完整的檢查碼驗證可以放到 Module 12 資安檢查時補上。
+# 匯入器允許醫院特定 ID，因此這裡只做格式檢查，不做 checksum 驗證。
 NATIONAL_ID_PATTERN = re.compile(r"^[A-Z]\d{9}$")
 GENERIC_ID_PATTERN = re.compile(r"^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{8,12}$")
 
 
 def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationResult:
-    # 先檢查副檔名，避免管理者上傳非 Excel 檔案。
     if not filename.lower().endswith((".xlsx", ".xls")):
         return ExcelValidationResult(
             is_valid=False,
@@ -32,8 +29,7 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
             ],
         )
 
-    # 使用標準化器讀取 Excel。
-    # 標準化器會支援一般格式、欄位別名、CFD 中文欄位格式，以及多工作表合併。
+    # 先正規化再驗證，讓標準格式與 CFD 工作簿共用同一套驗證規則。
     try:
         dataframe = normalize_excel_dataframe(file_content)
     except Exception as exc:
@@ -50,7 +46,6 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
             ],
         )
 
-    # 將空白字串統一視為缺值，後續必填檢查才會準確。
     dataframe = dataframe.fillna("").map(lambda value: value.strip() if isinstance(value, str) else value)
 
     detected_columns = list(dataframe.columns)
@@ -60,8 +55,7 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
 
     errors: list[ExcelValidationError] = []
 
-    # 檢查必要欄位是否存在。
-    # 如果缺欄位，仍會繼續檢查其他可檢查的資料，讓管理者一次看到較完整的問題。
+    # 即使缺欄位也繼續收集錯誤，讓管理者一次看到完整匯入報告。
     for column in missing_columns:
         errors.append(
             ExcelValidationError(
@@ -70,7 +64,6 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
             )
         )
 
-    # 檢查必要欄位是否有空值。
     for column in REQUIRED_EXCEL_COLUMNS:
         if column not in dataframe.columns:
             continue
@@ -85,7 +78,6 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
                 )
             )
 
-    # 檢查身分證字號基本格式。
     if "national_id" in dataframe.columns:
         for row_index, value in dataframe["national_id"].items():
             national_id = str(value).strip().upper()
@@ -102,8 +94,6 @@ def validate_excel_file(filename: str, file_content: bytes) -> ExcelValidationRe
                     )
                 )
 
-    # 檢查日期欄位是否能被解析成日期。
-    # errors='coerce' 會把無法解析的值轉成 NaT，方便找出錯誤列。
     for column in DATE_COLUMNS:
         if column not in dataframe.columns:
             continue

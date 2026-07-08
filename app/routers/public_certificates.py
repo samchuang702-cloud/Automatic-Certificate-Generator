@@ -12,8 +12,6 @@ from app.services.certificate_generator import generate_certificate_package
 from app.services.certificate_query import list_available_certificates
 
 
-# 使用者端證書查詢 API。
-# 使用者通過身分驗證後，可以用這個 API 取得可產生證書清單。
 router = APIRouter(prefix="/certificates", tags=["certificates"])
 
 
@@ -23,8 +21,7 @@ def get_available_certificates(
     current_user: UserAccount = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CertificateListResult:
-    # 查詢前再次比對 user_id 與 national_id。
-    # 目前尚未建立 session/token，所以每次查詢都要帶身分資料。
+    # 權杖只代表一般使用者層級權限，回傳資料仍需由姓名與 ID 限縮。
     return list_available_certificates(
         db,
         name=payload.name,
@@ -40,8 +37,6 @@ def generate_certificates(
     current_user: UserAccount = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FileResponse:
-    # 使用者勾選一份或多份證書後，系統產生 PDF 或 ZIP。
-    # 一份證書回傳 PDF，多份證書會自動打包成 ZIP。
     result = generate_certificate_package(
         db,
         name=payload.name,

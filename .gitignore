@@ -36,8 +36,5 @@ storage/database/*.sqlite
 !storage/generated/.gitkeep
 !storage/database/.gitkeep
 
-# 產生 docxtpl 時的本機候選樣本，不是系統正式模板。
-storage/templates/cfd_certificate_template_docxtpl_sample.docx
-
 # 舊版模板位置；正式模板放在 storage/templates/。
 storage/certificate_template.pptx

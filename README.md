@@ -1,10 +1,19 @@
-# 證書自動產生系統
+# 證書查詢與產生系統
 
-使用 Python、FastAPI、SQLite、Pandas、OpenPyXL、Jinja2/HTML 模板與 WeasyPrint 建立的證書自動產生系統。
+這是本機 Windows 版的 FastAPI 證書系統。系統使用 Excel 匯入證書資料，儲存在 SQLite，使用者可用姓名與 ID 查詢並下載證書 PDF。
 
-## Module 1 內容
+PDF 產生流程目前使用 Microsoft Word：
 
-本階段完成專案初始化與資料夾結構，先建立可啟動的 FastAPI 骨架，後續模組會逐步補上資料庫、Excel 上傳、驗證、PDF 與 ZIP 功能。
+1. 讀取 `storage/templates/cfd_certificate_template.doc`
+2. 替換模板中的姓名、身分證、課程、日期、證書字號等文字
+3. 透過 Microsoft Word 匯出 PDF
+4. PDF 存到 `storage/generated`
+
+## 環境需求
+
+- Windows
+- Python 虛擬環境
+- Microsoft Word
 
 ## 安裝
 
@@ -17,46 +26,39 @@ pip install -r requirements.txt
 ## 啟動
 
 ```powershell
-uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8001
 ```
 
-啟動後可開啟：
+啟動後開啟：
 
-- `http://127.0.0.1:8000/health`
-- `http://127.0.0.1:8000/docs`
+- `http://127.0.0.1:8001/`
+- `http://127.0.0.1:8001/health`
+- `http://127.0.0.1:8001/docs`
 
-## 專案結構
+## 主要資料夾
 
 ```text
-app/
-  main.py
-  core/
-    config.py
-  db/
-  models/
-  schemas/
-  routers/
-  services/
-  templates/
-  static/
-storage/
-  uploads/
-  generated/
-  database/
-tests/
+app/                      系統程式
+scripts/                  Microsoft Word 產 PDF 腳本
+storage/database/          SQLite 資料庫
+storage/uploads/           Excel 上傳暫存
+storage/generated/         產出的 PDF 或 ZIP
+storage/templates/         證書模板
+tests/                    自動化測試
 ```
 
-## 開發模組
+## 證書模板
 
-1. Module 1：專案初始化與資料夾結構
-2. Module 2：資料庫設計
-3. Module 3：後台 Excel 上傳功能
-4. Module 4：Excel 讀取與欄位驗證
-5. Module 5：Excel 匯入資料庫
-6. Module 6：使用者身分驗證
-7. Module 7：證書清單查詢
-8. Module 8：證書模板設計與套版
-9. Module 9：PDF 產生功能
-10. Module 10：多份證書 ZIP 打包下載
-11. Module 11：後台操作紀錄
-12. Module 12：錯誤處理與資安檢查
+正式 Word 模板：
+
+```text
+storage/templates/cfd_certificate_template.doc
+```
+
+目前系統會用 Microsoft Word 開啟這個模板，替換固定文字後輸出 PDF。若要調整版面，請直接用 Microsoft Word 修改這個 `.doc` 模板。
+
+## 測試
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```

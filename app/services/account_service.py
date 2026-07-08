@@ -8,7 +8,7 @@ from app.models.user_account import UserAccount
 from app.schemas.account import LoginResult
 
 
-# 預設開發帳號的密碼可以由環境變數覆寫，避免把明文密碼硬編在原始碼中。
+# 預設帳號供本機操作使用，密碼仍可透過環境變數覆寫。
 DEFAULT_USERS = [
     {
         "username": "admin",
@@ -32,9 +32,7 @@ DEFAULT_USERS = [
 
 
 def seed_default_users(db: Session) -> None:
-    # 建立開發測試用預設帳號。
-    # 開發環境會同步預設密碼，避免本機 SQLite 留下舊測試密碼造成 Demo 登入失敗。
-    # 生產環境若帳號已存在就略過，避免覆蓋正式密碼或角色。
+    # 本機 demo 需保持可預期；生產環境則避免意外覆蓋正式帳密。
     for user_data in DEFAULT_USERS:
         existing_user = db.scalar(
             select(UserAccount).where(UserAccount.username == user_data["username"])
@@ -75,7 +73,6 @@ def _login_result_for_user(user: UserAccount, display_name: str | None = None) -
 
 
 def authenticate_user(db: Session, username: str, password: str) -> LoginResult | None:
-    # 驗證帳號密碼，成功後回傳 JWT。
     cleaned_username = username.strip().replace("\ufeff", "")
     cleaned_password = password.strip().replace("\ufeff", "")
     user = db.scalar(select(UserAccount).where(UserAccount.username == cleaned_username))
@@ -86,7 +83,7 @@ def authenticate_user(db: Session, username: str, password: str) -> LoginResult 
 
 
 def issue_user_identity_token(db: Session, display_name: str) -> LoginResult | None:
-    # 一般使用者以姓名與 ID 驗證成功後，使用固定 user 角色帳號取得查詢權限。
+    # 姓名/ID 驗證成功後映射到共用低權限帳號，權限仍由角色控管。
     user = db.scalar(select(UserAccount).where(UserAccount.username == "user"))
     if not user:
         return None

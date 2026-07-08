@@ -6,25 +6,22 @@ import pandas as pd
 from app.core.excel_columns import EXCEL_COLUMN_ALIASES
 
 
-# 完整 ID 格式，例如 A123456789、U900002704。
 NATIONAL_ID_PATTERN = re.compile(r"^[A-Z]\d{9}$")
 
-# CFD Excel 內常見的遮罩身分證格式，例如 Q2235*****、T2********。
+# CFD 匯出檔常同時包含完整 ID 與顯示用遮罩 ID。
 MASKED_NATIONAL_ID_PATTERN = re.compile(r"^[A-Z][0-9*]{9}$")
 
-# 沒有明確 ID 欄名時，從內容長度接近 10 的欄位推測 ID。
+# 當 Excel 匯出後 ID 欄位變成未命名欄位時，使用此備援推測規則。
 ID_LIKE_PATTERN = re.compile(r"^[A-Z0-9]{8,12}$")
 
 
 def _clean_text(value: object) -> str:
-    # 把 Excel 儲存格轉成乾淨文字，空值統一回傳空字串。
     if pd.isna(value):
         return ""
     return str(value).strip()
 
 
 def _clean_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
-    # 清理欄位名稱與儲存格前後空白，讓後續欄位比對更穩定。
     dataframe = dataframe.copy()
     dataframe.columns = [str(column).strip() for column in dataframe.columns]
     dataframe = dataframe.fillna("")
@@ -32,7 +29,6 @@ def _clean_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def _first_existing(row: dict[str, object], candidates: list[str]) -> str:
-    # 依照候選欄位順序取第一個有值的欄位。
     for column in candidates:
         if column in row:
             value = _clean_text(row[column])
@@ -42,7 +38,7 @@ def _first_existing(row: dict[str, object], candidates: list[str]) -> str:
 
 
 def _find_full_national_id(row: dict[str, object]) -> str:
-    # 優先從明確欄位抓完整身分證，再掃描整列避免 Unnamed 欄位漏掉。
+    # 優先使用已知欄名，再掃描整列；CFD 檔常把關鍵儲存格匯出成 Unnamed 欄位。
     preferred_columns = [
         "national_id",
         "id_number",
@@ -71,7 +67,7 @@ def _find_full_national_id(row: dict[str, object]) -> str:
 
 
 def _find_length_similar_id(row: dict[str, object]) -> str:
-    # 如果資料表沒有 ID 欄名，就挑選內容長度最接近身分證長度的欄位作為 ID。
+    # 僅作為推測規則：挑選最接近台灣身分證長度的第一個 ID-like 值。
     candidates: list[tuple[int, int, str]] = []
 
     for index, value in enumerate(row.values()):
@@ -81,7 +77,7 @@ def _find_length_similar_id(row: dict[str, object]) -> str:
         if not any(char.isdigit() for char in text):
             continue
 
-        # 排除日期、民國年月、序號等常見非 ID 值。
+        # 排除常見誤判：日期、民國日期片段與列號。
         if text.isdigit() and len(text) <= 8:
             continue
         if re.match(r"^\d{2,3}0?\d{1,2}0?\d{1,2}$", text):
@@ -98,7 +94,7 @@ def _find_length_similar_id(row: dict[str, object]) -> str:
 
 
 def _find_masked_national_id(row: dict[str, object]) -> str:
-    # 模板上的身分證通常用遮罩格式，優先保留 Excel 原本顯示值。
+    # 保留 Excel 顯示值，讓證書可顯示遮罩 ID，同時驗證仍使用完整 ID。
     preferred_columns = ["身分證", "身分證1", "id_number_display"]
     for column in preferred_columns:
         value = _clean_text(row.get(column, "")).upper()
@@ -108,14 +104,13 @@ def _find_masked_national_id(row: dict[str, object]) -> str:
 
 
 def _normalize_standard_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
-    # 支援原本標準欄位格式，透過 aliases 轉成系統內部欄位名稱。
     dataframe = _clean_dataframe(dataframe)
     dataframe = dataframe.rename(columns=EXCEL_COLUMN_ALIASES)
     return dataframe
 
 
 def _normalize_cfd_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> pd.DataFrame:
-    # 將 CFD Excel 欄位轉成系統通用格式。
+    # 將醫院 CFD 工作簿格式轉成標準匯入共用的內部 schema。
     dataframe = _clean_dataframe(dataframe)
     normalized_rows: list[dict[str, str]] = []
 
@@ -127,11 +122,11 @@ def _normalize_cfd_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> pd.Dat
         activity = _first_existing(row, ["certificate_name", "活動", "Unnamed: 19"])
         issue_date = _first_existing(row, ["issue_date", "date", "日期", "代碼"])
 
-        # 空白列直接略過，避免表尾或註記列被匯入。
+        # 略過工作表頁尾、備註列與分隔列。
         if not any([national_id, name, activity, issue_date]):
             continue
 
-        # 系統驗證身分必須使用完整身分證，只有遮罩值的列無法用於登入驗證。
+        # 沒有完整 ID 的列無法支援身分驗證。
         if not national_id:
             continue
 
@@ -141,7 +136,7 @@ def _normalize_cfd_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> pd.Dat
         certificate_id = _first_existing(row, ["certificate_id", "證書字號"])
         participation = _first_existing(row, ["參與方式"])
 
-        # note 保存模板需要但資料庫目前沒有獨立欄位的資料。
+        # 模板專用資料放在 note，避免為每種來源格式擴充資料表欄位。
         note_parts = []
         for label, value in [
             ("顯示身分證", id_number_display),
@@ -155,7 +150,6 @@ def _normalize_cfd_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> pd.Dat
 
         normalized_rows.append(
             {
-                # CFD Excel 沒有獨立使用者 ID，先用完整身分證作為查詢 ID。
                 "user_id": _first_existing(row, ["user_id"]) or national_id,
                 "national_id": national_id,
                 "name": name,
@@ -173,7 +167,7 @@ def _normalize_cfd_dataframe(dataframe: pd.DataFrame, sheet_name: str) -> pd.Dat
 
 
 def normalize_excel_dataframe(file_content: bytes) -> pd.DataFrame:
-    # 讀取所有工作表，逐一判斷是標準格式或 CFD 格式。
+    # 每個工作表獨立正規化，因此可支援標準格式與 CFD 格式混合的工作簿。
     workbook = pd.read_excel(BytesIO(file_content), dtype=str, sheet_name=None)
     normalized_frames: list[pd.DataFrame] = []
 
@@ -197,7 +191,7 @@ def normalize_excel_dataframe(file_content: bytes) -> pd.DataFrame:
 
 
 def is_valid_issue_date(value: str) -> bool:
-    # 支援西元日期、民國文字日期與 115.05.23 這類 CFD 日期格式。
+    # 同時接受一般試算表日期與 CFD 證書使用的民國日期格式。
     text = value.strip()
     if not text:
         return True

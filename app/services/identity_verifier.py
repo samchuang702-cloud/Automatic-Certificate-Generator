@@ -6,7 +6,6 @@ from app.schemas.auth import IdentityVerifyResult
 
 
 def normalize_national_id(national_id: str) -> str:
-    # ID 統一去空白並轉大寫，讓 a123456789 也能比對 A123456789。
     return national_id.strip().upper()
 
 
@@ -16,7 +15,7 @@ def resolve_lookup_inputs(
     user_id: str | None = None,
     national_id: str | None = None,
 ) -> tuple[str, str]:
-    # 新版使用 name + id_number；舊版 user_id + national_id 仍可傳入。
+    # 新版前端使用 name/id_number；舊版呼叫仍可能送 user_id/national_id。
     lookup_name = (name or user_id or "").strip()
     lookup_id = normalize_national_id(id_number or national_id or "")
     return lookup_name, lookup_id
@@ -29,7 +28,7 @@ def find_records_by_name_and_id(
     user_id: str | None = None,
     national_id: str | None = None,
 ) -> tuple[str, str, list[CertificateRecord]]:
-    # 先用姓名查詢；為了相容舊版，也允許 lookup_name 命中 user_id。
+    # 優先以顯示姓名比對；舊客戶端仍存在時保留 user_id 查詢。
     lookup_name, lookup_id = resolve_lookup_inputs(name, id_number, user_id, national_id)
     if not lookup_name or not lookup_id:
         return lookup_name, lookup_id, []
@@ -53,7 +52,7 @@ def find_records_by_lookup_name(
     db: Session,
     lookup_name: str,
 ) -> list[CertificateRecord]:
-    # 只用姓名或舊版 user_id 查詢，用來判斷是 ID 錯誤還是完全查無此人。
+    # 僅用來區分「ID 錯誤」與「查無此人」的使用者訊息。
     if not lookup_name:
         return []
 
@@ -74,7 +73,6 @@ def verify_identity(
     user_id: str | None = None,
     national_id: str | None = None,
 ) -> IdentityVerifyResult:
-    # 驗證使用者輸入的姓名與 ID 是否能對到資料庫中的證書紀錄。
     lookup_name, _, records = find_records_by_name_and_id(
         db,
         name=name,
