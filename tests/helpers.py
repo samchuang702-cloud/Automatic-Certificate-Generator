@@ -14,11 +14,6 @@ def admin_headers(client: TestClient) -> dict[str, str]:
     return auth_headers(client, "admin", "admin123")
 
 
-def county_headers(client: TestClient) -> dict[str, str]:
-    # county_staff 可以使用 Excel 後台功能。
-    return auth_headers(client, "county", "county123")
-
-
 def user_headers(client: TestClient) -> dict[str, str]:
     # 一般 user 只能使用使用者端證書查詢/產生功能。
     return auth_headers(client, "user", "user123")

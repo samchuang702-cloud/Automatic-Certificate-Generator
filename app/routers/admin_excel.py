@@ -19,7 +19,7 @@ from app.services.operation_logger import create_operation_log
 router = APIRouter(
     prefix="/admin/excel",
     tags=["admin-excel"],
-    dependencies=[Depends(require_roles("admin", "county_staff"))],
+    dependencies=[Depends(require_roles("admin"))],
 )
 
 

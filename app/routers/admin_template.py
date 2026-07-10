@@ -9,7 +9,7 @@ from app.services.certificate_template import load_certificate_template
 router = APIRouter(
     prefix="/admin/template",
     tags=["admin-template"],
-    dependencies=[Depends(require_roles("admin", "county_staff"))],
+    dependencies=[Depends(require_roles("admin"))],
 )
 
 

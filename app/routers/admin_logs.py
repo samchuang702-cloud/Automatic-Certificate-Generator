@@ -11,7 +11,7 @@ from app.services.operation_logger import list_operation_logs
 router = APIRouter(
     prefix="/admin/logs",
     tags=["admin-logs"],
-    dependencies=[Depends(require_roles("admin", "county_staff"))],
+    dependencies=[Depends(require_roles("admin"))],
 )
 
 

@@ -4,7 +4,7 @@ import pandas as pd
 from fastapi.testclient import TestClient
 
 from app.main import app
-from tests.helpers import county_headers, user_headers
+from tests.helpers import admin_headers, user_headers
 
 
 def build_excel_file() -> BytesIO:
@@ -62,13 +62,13 @@ def test_user_role_cannot_use_admin_excel() -> None:
     assert response.status_code == 403
 
 
-def test_county_staff_can_use_admin_excel() -> None:
+def test_admin_can_use_admin_excel() -> None:
     client = TestClient(app)
     excel_file = build_excel_file()
 
     response = client.post(
         "/admin/excel/preview",
-        headers=county_headers(client),
+        headers=admin_headers(client),
         files={
             "file": (
                 "rbac.xlsx",

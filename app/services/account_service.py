@@ -17,12 +17,6 @@ DEFAULT_USERS = [
         "role": "admin",
     },
     {
-        "username": "county",
-        "password": os.getenv("DEFAULT_COUNTY_PASSWORD", "county123"),
-        "display_name": "縣市承辦人員",
-        "role": "county_staff",
-    },
-    {
         "username": "user",
         "password": os.getenv("DEFAULT_USER_PASSWORD", "user123"),
         "display_name": "一般使用者",

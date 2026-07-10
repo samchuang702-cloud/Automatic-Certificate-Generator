@@ -11,6 +11,7 @@ from reportlab.pdfgen import canvas
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.certificate_generation import CertificateGenerationRecord
+from app.models.certificate_record import CertificateRecord
 from app.services import certificate_generator
 from tests.helpers import admin_headers, user_headers
 
@@ -75,6 +76,19 @@ def fake_render_word_template_pdf(record, output_path: Path) -> Path:
     pdf.drawString(72, 720, f"PDF generated for {record.name}")
     pdf.save()
     return output_path
+
+
+def test_masked_national_id_shows_first_five_characters() -> None:
+    record = CertificateRecord(
+        user_id="A123456789",
+        national_id="A123456789",
+        name="SAM",
+        certificate_name="遮罩測試證書",
+        issue_date="2026-07-10",
+        note="顯示身分證：A1********",
+    )
+
+    assert certificate_generator._masked_national_id(record) == "A1234*****"
 
 
 def test_template_inspect_reads_pptx_template() -> None:

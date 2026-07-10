@@ -37,7 +37,7 @@ def test_static_assets_are_available() -> None:
     assert js_response.status_code == 200
     assert "generateCertificates" in js_response.text
     assert "Authorization" in js_response.text
-    assert "county_staff" in js_response.text
+    assert "county_staff" not in js_response.text
 
 
 def test_routes_lists_available_routes() -> None:

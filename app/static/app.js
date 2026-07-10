@@ -59,7 +59,7 @@ async function apiFetch(url, options = {}) {
 }
 
 function canUseAdmin() {
-  return ["admin", "county_staff"].includes(state.currentUser?.role);
+  return state.currentUser?.role === "admin";
 }
 
 function replaceHash(hash) {
@@ -424,14 +424,29 @@ function filenameFromDisposition(disposition) {
   return match ? match[1] : "certificates";
 }
 
+function setButtonLoading(button, isLoading, loadingText) {
+  if (isLoading) {
+    button.dataset.originalText = button.textContent;
+    button.disabled = true;
+    button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span>${loadingText}`;
+    return;
+  }
+
+  button.disabled = false;
+  button.textContent = button.dataset.originalText || button.textContent;
+  delete button.dataset.originalText;
+}
+
 async function generateCertificates() {
   const status = $("userStatus");
+  const generateButton = $("generateButton");
   try {
     const recordIds = selectedRecordIds();
     if (!recordIds.length) {
       throw new Error("請至少勾選一份證書。");
     }
 
+    setButtonLoading(generateButton, true, "產生中...");
     setStatus(status, "正在產生 PDF...");
     const response = await apiFetch("/certificates/generate", {
       method: "POST",
@@ -451,6 +466,8 @@ async function generateCertificates() {
     await loadLogs();
   } catch (error) {
     setStatus(status, error.message, "error");
+  } finally {
+    setButtonLoading(generateButton, false);
   }
 }
 
