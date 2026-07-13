@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.dependencies.auth import require_roles
@@ -16,6 +16,10 @@ from app.services.excel_validator import validate_excel_file
 from app.services.operation_logger import create_operation_log
 
 
+# 檔案上傳大小限制：50MB
+MAX_EXCEL_FILE_SIZE = 50 * 1024 * 1024
+UPLOAD_READ_CHUNK_SIZE = 1024 * 1024
+
 router = APIRouter(
     prefix="/admin/excel",
     tags=["admin-excel"],
@@ -23,9 +27,44 @@ router = APIRouter(
 )
 
 
+async def read_file_with_size_limit(file: UploadFile, max_size: int = MAX_EXCEL_FILE_SIZE) -> bytes:
+    """
+    讀取上傳檔案並檢查大小限制，防止 DoS 攻擊。
+    
+    Args:
+        file: 上傳的檔案
+        max_size: 最大允許的檔案大小（位元組）
+        
+    Returns:
+        檔案內容（字節）
+        
+    Raises:
+        HTTPException: 如果檔案超過大小限制
+    """
+    file_size = 0
+    chunks: list[bytes] = []
+
+    while True:
+        chunk = await file.read(UPLOAD_READ_CHUNK_SIZE)
+        if not chunk:
+            break
+
+        file_size += len(chunk)
+        if file_size > max_size:
+            max_size_mb = max_size / (1024 * 1024)
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"檔案大小超過限制。最大允許：{max_size_mb:.1f}MB，實際大小超過 {max_size_mb:.1f}MB",
+            )
+
+        chunks.append(chunk)
+
+    return b"".join(chunks)
+
+
 @router.post("/validate", response_model=ExcelValidationResult)
 async def validate_excel_upload(file: UploadFile = File(...)) -> ExcelValidationResult:
-    file_content = await file.read()
+    file_content = await read_file_with_size_limit(file)
     return validate_excel_file(file.filename or "", file_content)
 
 
@@ -34,8 +73,8 @@ async def upload_excel(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> ExcelUploadResult:
-    # 目前流程會一次讀入完整檔案；若要支援大型 Excel，需先加上大小限制。
-    file_content = await file.read()
+    # 讀入檔案並執行大小限制檢查
+    file_content = await read_file_with_size_limit(file)
 
     result = upload_excel_file(file.filename or "", file_content)
     create_operation_log(
@@ -58,7 +97,7 @@ async def preview_excel_upload(
     file: UploadFile = File(...),
     limit: int = Query(default=10, ge=1, le=100),
 ) -> ExcelPreviewResult:
-    file_content = await file.read()
+    file_content = await read_file_with_size_limit(file)
 
     return preview_excel_file(file.filename or "", file_content, limit=limit)
 
@@ -76,7 +115,7 @@ async def import_excel_upload(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> ExcelImportResult:
-    file_content = await file.read()
+    file_content = await read_file_with_size_limit(file)
 
     result = import_excel_content(db, file.filename or "", file_content)
     create_operation_log(

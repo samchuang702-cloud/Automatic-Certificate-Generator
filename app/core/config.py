@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     jwt_expire_minutes: int = 480
 
+    # CORS 允許的源 (來源)。多個源使用逗號分隔。生產環境必須明確設定。
+    # 格式: "http://localhost:3000,http://example.com"
+    cors_origins: str = "http://localhost:3000,http://localhost:8000,http://localhost:8001,http://127.0.0.1:3000,http://127.0.0.1:8000,http://127.0.0.1:8001"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

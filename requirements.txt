@@ -29,6 +29,9 @@ pypdf==6.14.2
 # ORM 工具，用 Python class 對應 SQLite 資料表。
 sqlalchemy==2.0.41
 
+# JWT token 生成與驗證（經過審計的標準庫）。
+PyJWT==2.13.0
+
 # 管理環境變數與 .env 設定檔。
 pydantic-settings==2.10.1
 
@@ -37,3 +40,6 @@ pytest==8.4.1
 
 # FastAPI TestClient 使用的 HTTP client。
 httpx==0.28.1
+
+# Pytest 異步支援。
+pytest-asyncio==1.4.0

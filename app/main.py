@@ -1,15 +1,29 @@
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+import logging
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from app.core.config import settings
 from app.db.session import create_db_and_tables
+from app.exceptions import (
+    AppException,
+    AuthenticationException,
+    AuthorizationException,
+    ConflictException,
+    InvalidOperationException,
+    ResourceNotFoundException,
+    ValidationException,
+)
 from app.routers.admin_excel import router as admin_excel_router
 from app.routers.admin_logs import router as admin_logs_router
 from app.routers.admin_template import router as admin_template_router
 from app.routers.public_auth import router as public_auth_router
 from app.routers.public_certificates import router as public_certificates_router
 from app.services.generated_cleanup import cleanup_old_generated_files
+
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -20,6 +34,27 @@ def create_app() -> FastAPI:
         not settings.jwt_secret_key or settings.jwt_secret_key == "dev-change-me-certificate-system"
     ):
         raise RuntimeError("JWT secret_key 未設定或仍為預設值，請於生產環境透過 .env 設定強隨機字串。")
+
+    # CORS 中間件配置：允許前端應用程式跨域訪問 API
+    allowed_origins = [origin.strip() for origin in settings.cors_origins.split(",")]
+    
+    # 生產環境下驗證 CORS 配置
+    if settings.app_env == "production":
+        for origin in allowed_origins:
+            if origin == "*" or origin.startswith("http://"):
+                raise RuntimeError(
+                    f"生產環境 CORS 配置不安全。不允許使用通配符 '*' 或 'http://'。"
+                    f"請於生產環境透過 .env 設定具體的 HTTPS 源，例如: 'https://yourhospital.com,https://app.yourhospital.com'"
+                )
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,           # 允許 Cookie/Authorization 認證
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],              # 允許所有自訂 headers
+        max_age=3600,                     # 預檢快取時間 (秒)
+    )
 
     # 目前仍採輕量 SQLite 啟動流程，尚未引入 migration 工具。
     create_db_and_tables()
@@ -65,6 +100,133 @@ def create_app() -> FastAPI:
             "app": settings.app_name,
             "env": settings.app_env,
         }
+
+    # ====== 全局異常處理器 ======
+    
+    @app.exception_handler(ValidationException)
+    async def validation_exception_handler(request: Request, exc: ValidationException) -> JSONResponse:
+        """處理驗證異常"""
+        logger.warning(f"驗證失敗: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "error": "validation_error",
+                "detail": str(exc),
+                "request_path": str(request.url.path),
+            }
+        )
+
+    @app.exception_handler(AuthenticationException)
+    async def authentication_exception_handler(request: Request, exc: AuthenticationException) -> JSONResponse:
+        """處理認證異常"""
+        logger.warning(f"認證失敗: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "error": "authentication_error",
+                "detail": str(exc),
+            }
+        )
+
+    @app.exception_handler(AuthorizationException)
+    async def authorization_exception_handler(request: Request, exc: AuthorizationException) -> JSONResponse:
+        """處理授權異常"""
+        logger.warning(f"授權失敗: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={
+                "error": "authorization_error",
+                "detail": str(exc),
+            }
+        )
+
+    @app.exception_handler(ResourceNotFoundException)
+    async def resource_not_found_handler(request: Request, exc: ResourceNotFoundException) -> JSONResponse:
+        """處理資源未找到異常"""
+        logger.info(f"資源未找到: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "error": "not_found",
+                "detail": str(exc),
+            }
+        )
+
+    @app.exception_handler(ConflictException)
+    async def conflict_exception_handler(request: Request, exc: ConflictException) -> JSONResponse:
+        """處理衝突異常"""
+        logger.warning(f"資源衝突: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "error": "conflict_error",
+                "detail": str(exc),
+            }
+        )
+
+    @app.exception_handler(InvalidOperationException)
+    async def invalid_operation_handler(request: Request, exc: InvalidOperationException) -> JSONResponse:
+        """處理無效操作異常"""
+        logger.warning(f"無效操作: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "error": "invalid_operation",
+                "detail": str(exc),
+            }
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        """處理 FastAPI HTTPException"""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": f"http_error_{exc.status_code}",
+                "detail": exc.detail,
+            }
+        )
+
+    @app.exception_handler(ValidationError)
+    async def pydantic_validation_handler(request: Request, exc: ValidationError) -> JSONResponse:
+        """處理 Pydantic 驗證異常"""
+        logger.warning(f"請求驗證失敗: {exc}")
+        errors = []
+        for error in exc.errors():
+            errors.append({
+                "field": ".".join(str(x) for x in error["loc"][1:]),
+                "message": error["msg"],
+                "type": error["type"],
+            })
+        
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "error": "validation_error",
+                "detail": "請求數據驗證失敗",
+                "errors": errors,
+            }
+        )
+
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """通用異常處理器 - 捕捉所有未預期的異常"""
+        logger.error(f"未預期的異常: {type(exc).__name__}: {exc}", exc_info=True)
+        
+        # 生產環境不暴露詳細錯誤信息
+        if settings.app_env == "production":
+            detail = "內部伺服器錯誤，請聯繫管理員"
+        else:
+            detail = f"{type(exc).__name__}: {str(exc)}"
+        
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": "internal_server_error",
+                "detail": detail,
+                "request_path": str(request.url.path),
+            }
+        )
 
     return app
 

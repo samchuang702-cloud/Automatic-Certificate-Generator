@@ -1,8 +1,10 @@
+const browserStorage = sessionStorage;
+
 const state = {
   certificates: [],
-  token: localStorage.getItem("accessToken"),
-  currentUser: JSON.parse(localStorage.getItem("currentUser") || "null"),
-  queryIdentity: JSON.parse(localStorage.getItem("queryIdentity") || "null"),
+  token: browserStorage.getItem("accessToken"),
+  currentUser: JSON.parse(browserStorage.getItem("currentUser") || "null"),
+  queryIdentity: JSON.parse(browserStorage.getItem("queryIdentity") || "null"),
 };
 
 function $(id) {
@@ -132,12 +134,12 @@ function finishLogin(payload, queryIdentity = null) {
     role: payload.role,
   };
   state.queryIdentity = queryIdentity;
-  localStorage.setItem("accessToken", state.token);
-  localStorage.setItem("currentUser", JSON.stringify(state.currentUser));
+  browserStorage.setItem("accessToken", state.token);
+  browserStorage.setItem("currentUser", JSON.stringify(state.currentUser));
   if (queryIdentity) {
-    localStorage.setItem("queryIdentity", JSON.stringify(queryIdentity));
+    browserStorage.setItem("queryIdentity", JSON.stringify(queryIdentity));
   } else {
-    localStorage.removeItem("queryIdentity");
+    browserStorage.removeItem("queryIdentity");
   }
   applyRoleView();
 }
@@ -171,9 +173,9 @@ function logout() {
   state.currentUser = null;
   state.queryIdentity = null;
   state.certificates = [];
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("currentUser");
-  localStorage.removeItem("queryIdentity");
+  browserStorage.removeItem("accessToken");
+  browserStorage.removeItem("currentUser");
+  browserStorage.removeItem("queryIdentity");
   $("usernameInput").value = "";
   $("passwordInput").value = "";
   renderCertificates([]);
@@ -227,7 +229,7 @@ function renderPreviewTable(rows) {
 
 function renderLogs(logs) {
   const list = $("logsList");
-  list.innerHTML = "";
+  list.replaceChildren();
 
   if (!logs.length) {
     list.textContent = "目前沒有操作紀錄。";
@@ -237,18 +239,24 @@ function renderLogs(logs) {
   logs.forEach((log) => {
     const item = document.createElement("div");
     item.className = "log-item";
-    item.innerHTML = `
-      <strong>${log.action} - ${log.status}</strong>
-      <span>${log.filename || "無檔案"} · ${new Date(log.created_at).toLocaleString()}</span>
-      <span>${log.detail || ""}</span>
-    `;
+
+    const title = document.createElement("strong");
+    title.textContent = `${log.action} - ${log.status}`;
+
+    const meta = document.createElement("span");
+    meta.textContent = `${log.filename || "無檔案"} · ${new Date(log.created_at).toLocaleString()}`;
+
+    const detail = document.createElement("span");
+    detail.textContent = log.detail || "";
+
+    item.append(title, meta, detail);
     list.appendChild(item);
   });
 }
 
 function renderCertificates(certificates) {
   const list = $("certificateList");
-  list.innerHTML = "";
+  list.replaceChildren();
   state.certificates = certificates;
 
   if (!certificates.length) {
@@ -259,17 +267,28 @@ function renderCertificates(certificates) {
   certificates.forEach((certificate) => {
     const item = document.createElement("label");
     item.className = "certificate-item";
-    item.innerHTML = `
-      <input type="checkbox" value="${certificate.record_id}" />
-      <div>
-        <strong>${certificate.certificate_name}</strong>
-        <div class="certificate-meta">
-          發證日期：${certificate.issue_date}
-          ${certificate.course_name ? ` · 課程：${certificate.course_name}` : ""}
-          ${certificate.note ? ` · 備註：${certificate.note}` : ""}
-        </div>
-      </div>
-    `;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = String(certificate.record_id);
+
+    const content = document.createElement("div");
+
+    const title = document.createElement("strong");
+    title.textContent = certificate.certificate_name;
+
+    const meta = document.createElement("div");
+    meta.className = "certificate-meta";
+    meta.textContent = [
+      `發證日期：${certificate.issue_date}`,
+      certificate.course_name ? `課程：${certificate.course_name}` : "",
+      certificate.note ? `備註：${certificate.note}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    content.append(title, meta);
+    item.append(checkbox, content);
     list.appendChild(item);
   });
 }
